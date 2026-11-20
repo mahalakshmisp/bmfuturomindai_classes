@@ -137,7 +137,7 @@
     </div>
   </div>
 
-  <!-- Admin Panel Modal (mahamca2017@gmail.com + Admin Mail OTP) -->
+  <!-- Admin Login Panel -->
   <div id="adminModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-slate-950/90 backdrop-blur-sm p-4 overflow-y-auto">
     <div class="w-full max-w-4xl rounded-2xl border border-amber-500/40 bg-slate-900 p-5 md:p-6 shadow-2xl space-y-4 my-6">
       <div class="flex flex-wrap items-center justify-between gap-2 border-b border-slate-800 pb-3">
@@ -3356,6 +3356,7 @@
             localStorage.setItem('bm_users_v2', JSON.stringify(authState.users));
             localStorage.setItem('bm_curr_v2', JSON.stringify(newUser));
           } catch {}
+          sendRegistrationNotification({ name, em, mobile: mob, selectedCourse });
           syncUserChip();
           authOtpInput.value = '';
           otpNoticeBox.classList.add('hidden');
@@ -3706,6 +3707,18 @@ for k, v in metrics.items():
 
 
 
+      // Send welcome and registration details from the browser after a successful registration.
+      async function sendRegistrationNotification({ name, em, mob, selectedCourse }) {
+        const nowIso = new Date().toISOString();
+        try {
+          await fetch(`${window.location.origin}/api/register-notification`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name, email: em, mobile: mob, course: selectedCourse, registeredAt: nowIso }),
+          });
+        } catch {}
+      }
+
       // =====================================================================
       // RAZORPAY ONE-TIME ₹1,000 INR LIFETIME ACCESS PAYMENT
       // =====================================================================
@@ -3815,17 +3828,16 @@ for k, v in metrics.items():
         finalizeLifetimePurchase(mockId);
       });
 
+      // ADMIN PANEL (Admin Login: admin / admin)
       // =====================================================================
-      // ADMIN PANEL (mahamca2017@gmail.com + ADMIN MAIL OTP + CSV/JSON EXPORT)
-      // =====================================================================
-      const ADMIN_EMAIL = 'mahamca2017@gmail.com';
+      const ADMIN_USER_ID = 'admin';
+      const ADMIN_PASSWORD = 'admin';
       const adminModal = document.getElementById('adminModal');
       const adminLoginView = document.getElementById('adminLoginView');
       const adminDashboardView = document.getElementById('adminDashboardView');
       const adminEmailInput = document.getElementById('adminEmailInput');
       const adminOtpInput = document.getElementById('adminOtpInput');
-      const adminOtpNotice = document.getElementById('adminOtpNotice');
-      const adminState = { otp: '', unlocked: false };
+      const adminState = { unlocked: false };
 
       function getAdminData() {
         let users = {};

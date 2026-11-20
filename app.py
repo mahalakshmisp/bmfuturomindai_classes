@@ -18,7 +18,6 @@ SMTP_APP_PASS = os.getenv("SMTP_APP_PASS", "")
 RAZORPAY_KEY_ID = os.getenv("RAZORPAY_KEY_ID", "")
 RAZORPAY_KEY_SECRET = os.getenv("RAZORPAY_KEY_SECRET", "")
 
-
 @app.get("/")
 def home():
     for candidate in (
@@ -103,6 +102,85 @@ def verify_razorpay_payment():
         return jsonify({"verified": hmac.compare_digest(expected, signature)})
     except Exception as exc:
         return jsonify({"verified": False, "error": str(exc)}), 200
+
+
+def send_email(to_email, subject, body):
+    if not SMTP_USER or not SMTP_APP_PASS:
+        return False
+    msg = EmailMessage()
+    msg["Subject"] = subject
+    msg["From"] = SMTP_USER
+    msg["To"] = to_email
+    msg.set_content(body)
+    with smtplib.SMTP_SSL(SMTP_HOST, SMTP_PORT, timeout=15) as server:
+        server.login(SMTP_USER, SMTP_APP_PASS)
+        server.send_message(msg)
+    return True
+
+
+@app.post("/api/register-notification")
+def register_notification():
+    data = request.get_json(silent=True) or {}
+    student_email = str(data.get("email", "")).strip()
+    name = str(data.get("name", "Student")).strip()
+    mobile = str(data.get("mobile", "")).strip()
+    course = str(data.get("course", "")).strip()
+    registered_at = str(data.get("registeredAt", "")).strip()
+
+    if not student_email:
+        return jsonify({"sent": False, "error": "Student email required"}), 400
+
+    try:
+        student_sent = send_email(
+            student_email,
+            "Welcome to BM FUTUROMIND AI Academy",
+            f"Hello {name},\n\nWelcome to BM FUTUROMIND AI Academy!\n\n"
+            f"Your registration details:\nName: {name}\nEmail: {student_email}\n"
+            f"Mobile: {mobile}\nSelected Course: {course}\nRegistered At: {registered_at}\n\n"
+            "Regards,\nBM FUTUROMIND AI (9150851916)",
+        )
+        admin_sent = send_email(
+            "info@bmfuturomindai.com",
+            "New Student Registration - BM FUTUROMIND AI",
+            f"New student registered:\n\nName: {name}\nEmail: {student_email}\n"
+            f"Mobile: {mobile}\nSelected Course: {course}\nRegistered At: {registered_at}",
+        )
+        return jsonify({"sent": student_sent and admin_sent, "studentSent": student_sent, "adminSent": admin_sent})
+    except Exception as exc:
+        return jsonify({"sent": False, "error": str(exc)}), 200
+
+
+@app.post("/api/payment-notification")
+def payment_notification():
+    data = request.get_json(silent=True) or {}
+    student_email = str(data.get("email", "")).strip()
+    name = str(data.get("name", "Student")).strip()
+    mobile = str(data.get("mobile", "")).strip()
+    course = str(data.get("course", "")).strip()
+    amount = str(data.get("amount", "₹1,000 INR (Lifetime)")).strip()
+    payment_id = str(data.get("paymentId", "")).strip()
+    date = str(data.get("date", "")).strip()
+
+    if not student_email:
+        return jsonify({"sent": False, "error": "Student email required"}), 400
+
+    try:
+        student_sent = send_email(
+            student_email,
+            "Payment Received - BM FUTUROMIND AI Academy",
+            f"Hello {name},\n\nYour payment has been received.\n\n"
+            f"Amount: {amount}\nCourse: {course}\nPayment ID: {payment_id}\nDate: {date}\n\n"
+            "Welcome to your lifetime course access!\n\nRegards,\nBM FUTUROMIND AI (9150851916)",
+        )
+        admin_sent = send_email(
+            "info@bmfuturomindai.com",
+            "Payment Received - Student Payment Details",
+            f"Payment details:\n\nName: {name}\nEmail: {student_email}\nMobile: {mobile}\n"
+            f"Course: {course}\nAmount: {amount}\nPayment ID: {payment_id}\nDate: {date}",
+        )
+        return jsonify({"sent": student_sent and admin_sent, "studentSent": student_sent, "adminSent": admin_sent})
+    except Exception as exc:
+        return jsonify({"sent": False, "error": str(exc)}), 200
 
 
 if __name__ == "__main__":
